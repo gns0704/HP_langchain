@@ -18,32 +18,24 @@ VECTORSTORE_DIR = "faiss_index"
 # 3. 문서 로드 및 텍스트 분할 함수
 def load_and_split_docs(uploaded_file):
     # -----------------------------------------------------
-    # Samsung_Card_Manual_Korean_1.3.pdf 파일을 읽어옵니다.
-    # PyPDFLoader는 PDF의 각 페이지를 text로 변환합니다.
+    # PDF 파일 로드
+    # -----------------------------------------------------
     loader = PyPDFLoader(uploaded_file)
-    pages = loader.load()  # List[Document] 형태로 반환
+    pages = loader.load()  # List[Document]
 
     # -----------------------------------------------------
     # 2️⃣ 텍스트 분할 (chunk 단위)
     # -----------------------------------------------------
-    # CharacterTextSplitter로 문서를 청크 단위로 쪼갭니다.
-    # chunk_size와 overlap은 retrieval 성능에 영향을 줍니다.
     splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
-  #  return splitter.split_documents(documents)
-  #  splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=100)
     docs = splitter.split_documents(pages)
 
     # -----------------------------------------------------
-    # 3️⃣ 임베딩 생성 및 벡터DB 저장
+    # (삭제됨) 임베딩/벡터DB 생성은 여기서 하면 안 됨
+    # create_vectorstore()에서 처리해야 함
     # -----------------------------------------------------
-    # OpenAI Embeddings를 이용해 각 문서 청크를 벡터화하고
-    # FAISS에 저장합니다. (로컬 DB로 빠른 검색 가능)
-    embeddings = OpenAIEmbeddings()
-    vectordb = FAISS.from_documents(docs, embeddings)
 
-    # 검색기(retriever) 객체 생성
-    retriever = vectordb.as_retriever(search_kwargs={"k": 3}) 
-
+    # 최종적으로 문서 조각 리스트를 반환
+    return docs
 
 # 4. 벡터스토어 생성 함수 (새 문서 업로드 시 최초 1회 실행)
 def create_vectorstore(docs):
@@ -116,7 +108,7 @@ def build_rag_chain(vectordb):
 
 # 7. Streamlit 웹 인터페이스 설정
 st.set_page_config(page_title="쿠핑 RAG 챗봇")
-st.title("쿠핑 새벽배송 RAG 챗봇")
+st.title("쿠핑 사내 RAG 챗봇")
 
 # 8. 세션 상태 초기화
 # Streamlit은 앱을 새로고침해도 상태를 기억하기 위해 session_state 사용
@@ -132,7 +124,7 @@ vectordb_exists = os.path.exists(VECTORSTORE_DIR)
 #uploaded_file = st.file_uploader("문서를 업로드하세요 (PDF 또는 TXT)", type=["pdf", "txt"])
 
 # 11. 벡터스토어 존재 시: 로드 후 바로 사용
-uploaded_file=''
+uploaded_file='internal_policy_guidelines.pdf'
 if vectordb_exists:
     st.session_state.vectordb = load_vectorstore()
     if st.session_state.vectordb:
@@ -141,12 +133,12 @@ if vectordb_exists:
     else:
         st.warning("벡터스토어를 불러오지 못했습니다. 새로 생성하세요.")
 
-    # 12. 벡터스토어가 없을 때: 업로드된 문서로 새로 생성
-    uploaded_file="internal_policy_guidelines.pdf"
-else:   
+# 12. 벡터스토어가 없을 때: 업로드된 문서로 새로 생성
+else:
     if uploaded_file:
         with st.spinner("문서를 처리하고 임베딩 중입니다..."):
-            split_docs = load_and_split_docs(uploaded_file)           # 문서 로드 및 분할
+            split_docs = load_and_split_docs(uploaded_file)   
+            print(split_docs)        # 문서 로드 및 분할
             st.session_state.vectordb = create_vectorstore(split_docs) # 벡터스토어 생성
             st.session_state.rag_chain = build_rag_chain(st.session_state.vectordb)
             st.success("새 벡터스토어를 생성했습니다.")
